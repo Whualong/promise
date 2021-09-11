@@ -1,14 +1,24 @@
 {
   "name": "promise",
+  "private": true,
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "A simple promise implementation",
+  "main": "/src/promise.js",
   "scripts": {
-    "test": "promises-aplus-tests /src/promise.js"
+    "test": "promises-aplus-tests /src/promise.js",
+    "build":"rollup -c"
   },
+  "browser": "dist/promise.umd.js",
+   "node":"dist/promise.cjs.js",
+  "keywords": [
+    "promise",
+    "promises-aplus-tests"
+  ],
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "promises-aplus-tests": "^2.1.2"
+    "promises-aplus-tests": "^2.1.2",
+    "rollup": "^2.56.3",
+    "rollup-plugin-commonjs": "^10.1.0"
   }
 }
