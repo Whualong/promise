@@ -14,7 +14,7 @@
     "promise",
     "promises-aplus-tests"
   ],
-  "author": "",
+  "author": "cdlw",
   "license": "ISC",
   "devDependencies": {
     "eslint": "^7.32.0",
