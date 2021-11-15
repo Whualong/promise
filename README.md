@@ -47,4 +47,4 @@ getData(url1).then((data)=>{
 npm run test
 ```
 
-![test](./src/test.png)
+<img src="./src/test.png" alt="test" style="zoom: 80%;" />
