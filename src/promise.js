@@ -1,155 +1,194 @@
-const pending = 'PENDING'
-const fufilled = 'FUFILLED'
-const rejected = 'REJECTED'
-
+/*
+ *@description: implement promise && pass promise A+ 872 tests
+  加入异步微任务队列的实现使用的 queueMicrotask 底层API
+  不建议使用setTimeout 宏任务
+ *@author: codeWen666
+ *@date: 2021-10-22 00:57:06
+ *@version: V1.0.5
+*/
+const PENDIGN = 'pending'
+const FUFILLED = 'fufilled'
+const REJECTED = 'rejected'
 class Promise {
-  constructor (exector) {
-    this.status = pending
+  constructor (exec) {
+    this.status = PENDIGN
     this.value = undefined
     this.reason = undefined
-    this.onFufilledCallback = []
-    this.onRejectedCallback = []
+    this.resolveCallback = []
+    this.rejectCallback = []
     const resolve = (val) => {
-      if (this.status === pending) {
-        this.status = fufilled
+      if (this.status === PENDIGN) {
+        this.status = FUFILLED
         this.value = val
-        this.onFufilledCallback.forEach((fn) => {
+        this.resolveCallback.forEach((fn) => {
           fn()
         })
       }
     }
     const reject = (val) => {
-      if (this.status === pending) {
-        this.status = rejected
+      if (this.status === PENDIGN) {
+        this.status = REJECTED
         this.reason = val
-        this.onRejectedCallback.forEach((fn) => {
+        this.rejectCallback.forEach((fn) => {
           fn()
         })
       }
     }
+
     try {
-      exector(resolve, reject)
+      exec(resolve, reject)
     } catch (e) {
       reject(e)
     }
   }
 
-  then (onFufilled, onRejected) {
-    onFufilled = typeof onFufilled === 'function' ? onFufilled : val => val
-    onRejected = typeof onRejected === 'function' ? onRejected : err => { throw err }
-    const promise2 = new Promise((resolve, reject) => {
-      if (this.status === fufilled) {
+  then (onResolve, onReject) {
+    onResolve = typeof onResolve === 'function' ? onResolve : (val) => val
+    onReject = typeof onReject === 'function' ? onReject : (err) => { throw err }
+    const newP = new Promise((resolve, reject) => {
+      const queueResolveTask = () => {
         queueMicrotask(() => {
           try {
-            const x = onFufilled(this.value)
-            resolvePromise(promise2, x, resolve, reject)
+            const x = onResolve(this.value)
+            resolvePromise(newP, x, resolve, reject)
           } catch (e) {
             reject(e)
           }
         })
       }
-      if (this.status === rejected) {
+      const queueRejectTask = () => {
         queueMicrotask(() => {
           try {
-            const x = onRejected(this.reason)
-            resolvePromise(promise2, x, resolve, reject)
+            const x = onReject(this.reason)
+            resolvePromise(newP, x, resolve, reject)
           } catch (e) {
             reject(e)
           }
         })
       }
-      if (this.status === pending) {
-        this.onFufilledCallback.push(() => {
-          queueMicrotask(() => {
-            try {
-              const x = onFufilled(this.value)
-              resolvePromise(promise2, x, resolve, reject)
-            } catch (e) {
-              reject(e)
-            }
-          })
-        })
-        this.onRejectedCallback.push(() => {
-          queueMicrotask(() => {
-            try {
-              const x = onRejected(this.reason)
-              resolvePromise(promise2, x, resolve, reject)
-            } catch (e) {
-              reject(e)
-            }
-          })
-        })
+
+      if (this.status === FUFILLED) {
+        queueResolveTask()
+      }
+      if (this.status === REJECTED) {
+        queueRejectTask()
+      }
+      if (this.status === PENDIGN) {
+        this.resolveCallback.push(queueResolveTask)
+        this.rejectCallback.push(queueRejectTask)
       }
     })
-    return promise2
+    return newP
   }
 
   catch (fn) {
     return this.then(null, fn)
   }
+
+  finally (fn) {
+    return this.then(fn, fn)
+  }
 }
-// resolve方法
 Promise.resolve = (val) => {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     resolve(val)
   })
 }
-// reject方法
 Promise.reject = (val) => {
   return new Promise((resolve, reject) => {
     reject(val)
   })
 }
-// race方法
-Promise.race = function (promises) {
+Promise.race = (promises) => {
   return new Promise((resolve, reject) => {
     promises.forEach((promise) => {
       promise.then(resolve, reject)
     })
   })
 }
-// all方法(获取所有的promise，都执行then，把结果放到数组，一起返回)
-Promise.all = function (promises) {
-  const arr = []
+
+// Promise.all = (promises) => {
+//   const result = []
+//   let i = 0
+//   let copyResolve = null
+//   function processPromise (data, index) {
+//     result[index] = data
+//     i++
+//     if (i === promises.length) {
+//       copyResolve(result)
+//     }
+//   }
+//   return new Promise((resolve, reject) => {
+//     copyResolve = resolve
+//     promises.forEach((promise, index) => {
+//       promise.then((res) => {
+//         processPromise(res, index)
+//       }, reject)
+//     })
+//   })
+// }
+
+Promise.all = (promises) => {
+  const result = []
   let i = 0
   return new Promise((resolve, reject) => {
-    function processData (index, data) {
-      arr[index] = data
-      i++
-      if (i === promises.length) {
-        resolve(arr)
-      };
-    };
-    promises.forEach((promise, i) => {
-      promise.then(data => {
-        processData(i, data)
-      }, reject)
+    promises.forEach((item, index) => {
+      Promise.resolve(item).then((data) => {
+        result[index] = data
+        i++
+        if (i === promises.length) {
+          resolve(result)
+        }
+      }).catch(reject)
     })
   })
 }
-function resolvePromise (promise, x, resolve, reject) {
-  if (x === promise) {
-    return reject(new TypeError('chain refrence'))
+
+Promise.allSettled = (promises) => {
+  const result = []
+  let i = 0
+  return new Promise((resolve, reject) => {
+    promises.forEach((item, index) => {
+      Promise.resolve(item).then((data) => {
+        result[index] = data
+        i++
+        if (i === promises.length) {
+          resolve(result)
+        }
+      }, (err) => {
+        result[index] = err
+        i++
+        if (i === promises.length) {
+          resolve(result)
+        }
+      })
+    })
+  })
+}
+
+function resolvePromise (p, x, resolve, reject) {
+  if (p === x) {
+    return reject(new TypeError('chain cycle'))
   }
-  let called = false
-  if (x !== null && (typeof x === 'object' || typeof x === 'function')) {
+  let called
+  if (x != null && (typeof x === 'object' || typeof x === 'function')) {
     try {
       const then = x.then
       if (typeof then === 'function') {
-        then.call(x, (y) => {
-          if (called) { return }
+        then.call(x, (r1) => {
+          if (called) return
           called = true
-          resolvePromise(promise, y, resolve, reject)
-        }, e => {
-          if (called) { return }
+          resolvePromise(p, r1, resolve, reject)
+        }, (err) => {
+          if (called) return
           called = true
-          reject(e)
+          reject(err)
         })
       } else {
         resolve(x)
       }
     } catch (e) {
-      if (called) { return }
+      if (called) return
       called = true
       reject(e)
     }
@@ -157,6 +196,7 @@ function resolvePromise (promise, x, resolve, reject) {
     resolve(x)
   }
 }
+
 Promise.defer = Promise.deferred = function () {
   const dfd = {}
   dfd.promise = new Promise((resolve, reject) => {
